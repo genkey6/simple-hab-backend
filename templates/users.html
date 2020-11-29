@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Simple House Account Book App</title>
+  </head>
+
+  <body>
+    <div>
+      {% for entry in entries %}
+      <div>
+        <div>id: {{ entry.id }}, name: {{ entry.name }}</div>
+        <form action="/delete/user" method="post">
+          <input type="hidden" name="id" value="{{ entry.id }}" />
+          <button>delete</button>
+        </form>
+      </div>
+      {% endfor %}
+    </div>
+
+    <form action="/create/user" method="post">
+      <div>
+        <input name="name" />
+      </div>
+      <div>
+        <button>add</button>
+      </div>
+    </form>
+  </body>
+</html>
