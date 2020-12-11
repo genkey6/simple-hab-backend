@@ -30,7 +30,7 @@ async fn update(
   Ok(HttpResponse::Ok().json(user))
 }
 
-#[delete("/users/{id")]
+#[delete("/users/{id}")]
 async fn delete(id: web::Path<i32>) -> Result<HttpResponse, MyError> {
   let deleted_user = User::delete(id.into_inner())?;
   Ok(HttpResponse::Ok().json(json!({ "deleted": deleted_user })))
