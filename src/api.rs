@@ -1,79 +1,45 @@
-use crate::views::{UserEntry, UsersTemplate};
+use crate::models::{User, UserCommand};
 use crate::MyError;
-use actix_web::{get, http::header, post, web, HttpResponse};
-use askama::Template;
-use r2d2::Pool;
-use r2d2_sqlite::SqliteConnectionManager;
-use rusqlite::params;
-use serde::Deserialize;
-
-#[derive(Deserialize)]
-pub struct AddParams {
-  name: String,
-}
-
-#[derive(Deserialize)]
-pub struct DeleteParams {
-  id: u32,
-}
+use actix_web::{delete, get, post, put, web, HttpResponse};
+use serde_json::json;
 
 #[get("/users")]
-pub async fn list(db: web::Data<Pool<SqliteConnectionManager>>) -> Result<HttpResponse, MyError> {
-  let conn = db.get()?;
-  let mut statement = conn.prepare("SELECT id, name FROM user")?;
-  let rows = statement.query_map(params![], |row| {
-    let id = row.get(0)?;
-    let name = row.get(1)?;
-    Ok(UserEntry { id, name })
-  })?;
-
-  let mut entries = Vec::new();
-  for row in rows {
-    entries.push(row?);
-  }
-  let html = UsersTemplate { entries };
-  let response_body = html.render()?;
-  Ok(
-    HttpResponse::Ok()
-      .content_type("text/html")
-      .body(response_body),
-  )
+async fn find() -> Result<HttpResponse, MyError> {
+  let users = User::find()?;
+  Ok(HttpResponse::Ok().json(users))
 }
 
-#[get("/user/{username}")]
-pub async fn get_user() -> Result<HttpResponse, MyError> {
-  let response_body = "Hello world!";
-
-  // HttpResponse::Ok() はステータスコード 200 を持つ HttpResponseBuilder という構造体を返す
-  // HttpResponseBuilder の Body() という関数にレスポンスのボディを渡すと HttpResponse が返ってくる
-  // 戻り値が Result 型なので Ok で包む
-  Ok(HttpResponse::Ok().body(response_body))
+#[get("/users/{id}")]
+async fn get(id: web::Path<i32>) -> Result<HttpResponse, MyError> {
+  let user = User::get(id.into_inner())?;
+  Ok(HttpResponse::Ok().json(user))
 }
 
-#[post("/create/user")]
-pub async fn post_user(
-  params: web::Form<AddParams>,
-  db: web::Data<r2d2::Pool<SqliteConnectionManager>>,
+#[post("/users")]
+async fn create(command: web::Json<UserCommand>) -> Result<HttpResponse, MyError> {
+  let user = User::create(command.into_inner())?;
+  Ok(HttpResponse::Ok().json(user))
+}
+
+#[put("/users/{id}")]
+async fn update(
+  id: web::Path<i32>,
+  command: web::Json<UserCommand>,
 ) -> Result<HttpResponse, MyError> {
-  let conn = db.get()?;
-  conn.execute("INSERT INTO user (name) VALUES (?)", &[&params.name])?;
-  Ok(
-    HttpResponse::SeeOther()
-      .header(header::LOCATION, "/users")
-      .finish(),
-  )
+  let user = User::update(id.into_inner(), command.into_inner())?;
+  Ok(HttpResponse::Ok().json(user))
 }
 
-#[post("/delete/user")]
-pub async fn delete_user(
-  params: web::Form<DeleteParams>,
-  db: web::Data<r2d2::Pool<SqliteConnectionManager>>,
-) -> Result<HttpResponse, MyError> {
-  let conn = db.get()?;
-  conn.execute("DELETE FROM user WHERE id=?", &[&params.id])?;
-  Ok(
-    HttpResponse::SeeOther()
-      .header(header::LOCATION, "/users")
-      .finish(),
-  )
+#[delete("/users/{id")]
+async fn delete(id: web::Path<i32>) -> Result<HttpResponse, MyError> {
+  let deleted_user = User::delete(id.into_inner())?;
+  Ok(HttpResponse::Ok().json(json!({ "deleted": deleted_user })))
+}
+
+pub fn init_routes(config: &mut web::ServiceConfig) {
+  config.service(find);
+  config.service(get);
+  config.service(create);
+  config.service(update);
+  config.service(delete);
 }
